@@ -3,16 +3,12 @@ CREATE TABLE genre(
   genre_name VARCHAR(100)
 );
 
-
 CREATE TABLE movies (
   movie_id INT PRIMARY KEY,
   title VARCHAR(255),
-  release_date DATE,
-  video_release_data DATE DEFAULT NULL,
   imdb_url VARCHAR(255),
   num_genres INT
 );
-
 
 CREATE TABLE movie_genres(
   movie_genre_id INT PRIMARY KEY,
@@ -29,7 +25,6 @@ CREATE TABLE users (
   occupation VARCHAR(255),
   zip_code VARCHAR(10)
 );
-
 
 CREATE TABLE ratings (
   rating_id INT PRIMARY KEY,

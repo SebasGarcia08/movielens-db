@@ -1,11 +1,12 @@
-import urllib.request
 import os
-import oracledb
-import numpy as np
-import pandas as pd
 import os.path as osp
-import zipfile
 import typing as ty
+import urllib.request
+import zipfile
+
+import numpy as np
+import oracledb
+import pandas as pd
 
 genres_columns = [
     'unknown', 'Action', 'Adventure', 'Animation', 'Children', 'Comedy', 'Crime', 'Documentary',
@@ -14,30 +15,18 @@ genres_columns = [
 ]
 
 DATA_FOLDER = "data/ml-100k"
-#DB_PWD = os.environ['ORCACLE_DB_PWD']
-
-hostip = "200.3.193.24"
-user = "P09551_1_3"
-pwd = "P09551_1_3_20231"
-port = 1522
-service_name = "ESTUD"
-
-dirpath = "/home/sebastiangarcia/Documents/u/8/bd-lab/instantclient_19_10"
-clientfilename = "libclntsh.so"
-clientfile = osp.join(dirpath, clientfilename)
 
 oracledb.init_oracle_client()
 
 connection = oracledb.connect(
-   user=user,
-   password=pwd,
-   host=f"{hostip}",
-   port=port,
-   service_name=service_name,
+   user=os.environ['DB_USER'],
+   password=os.environ['DB_PWD'],
+   host=os.environ['DB_HOST'],
+   port=int(os.environ['DB_PORT']),
+   service_name=os.environ['DB_SERVICE_NAME'],
 )
 
 cursor = connection.cursor()
-
 
 def download_data(url: str, save_path: str) -> None:
     # Specify the directory to save the downloaded file
@@ -120,10 +109,18 @@ def get_tables(url) -> ty.Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.Dat
 
 def create_schema(sql_code_path: str) -> None:
     with open(sql_code_path, 'r') as f:
-        sql_code = f.read()
-    print("Creating schema...")
-    print(sql_code)
-    cursor.execute(f"""{sql_code}""")
+        ddl = f.read()
+    statements = ddl.split(';')
+
+    table_names = ['genre', 'movies', 'movie_genres', 'users', 'ratings']
+
+    for table_name in table_names:
+        cursor.execute(f"DROP TABLE {table_name} CASCADE CONSTRAINTS")
+
+    for statement in statements[:-1]:
+        print("Creating schema...")
+        print(statement)
+        cursor.execute(statement)
 
 def main() -> None:
     # URL to download the MovieLens 100K dataset
@@ -139,9 +136,39 @@ def main() -> None:
     print(users_df.head())
     print("Ratings DataFrame:")
     print(ratings_df.head())
-    
 
     create_schema("ddl.sql")
+
+    genre_data = [tuple(x) for x in genres.values]
+    cursor.executemany('INSERT INTO genre (genre_id, genre_name) VALUES (:1, :2)', genre_data)
+    connection.commit()
+
+    movies_df['release_date'] = movies_df['release_date'].astype("datetime64[ns]").astype(str)
+    movies_df['video_release_date'] =  movies_df['video_release_date'].astype("datetime64[ns]").astype(str)
+    movies_df['IMDb_URL'] = movies_df['IMDb_URL'].astype(str)
+    movies_df.drop(columns=['release_date', 'video_release_date'], inplace=True)
+    print(movies_df.info())
+    
+    movies_data = [tuple(x) for x in movies_df.values]
+    cursor.executemany('INSERT INTO movies (movie_id, title, imdb_url, num_genres) VALUES (:1, :2, :3, :4)', movies_data)
+    connection.commit()
+
+    print(movie_genres_df.info())
+    movies_genres_data = [tuple(map(int, x)) for x in movie_genres_df[['movie_genre_id', 'movie_id', 'genre_id']].values]
+    cursor.executemany('INSERT INTO movie_genres (movie_genre_id, movie_id, genre_id) VALUES (:1, :2, :3)', movies_genres_data)
+    connection.commit()
+
+    users_data = [tuple(x) for x in users_df.values]
+    cursor.executemany('INSERT INTO users (user_id, age, gender, occupation, zip_code) VALUES (:1, :2, :3, :4, :5)', users_data)
+    connection.commit()
+
+    print(ratings_df.info())
+    ratings_data = [tuple(map(int, x)) for x in ratings_df[["rating_id", "user_id", "movie_id", "rating", "timestamp"]].values]
+    cursor.executemany('INSERT INTO ratings (rating_id, user_id, movie_id, rating, timestamp) VALUES (:1, :2, :3, :4, :5)', ratings_data)
+    connection.commit()
+    cursor.close()
+    connection.close()
+
 
 if __name__ == '__main__':
     main()
