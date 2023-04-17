@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "movielens_db"
+version = "0.1.0"
+description = ""
+authors = ["Your Name <you@example.com>"]
+readme = "README.md"
+packages = [{include = "src/movielens_db"}]
+
+[tool.poetry.dependencies]
+python = ">=3.8,<4"
+oracledb = "^1.3.0"
+pandas = "^2.0.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
