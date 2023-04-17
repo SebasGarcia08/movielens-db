@@ -1,5 +1,6 @@
 import urllib.request
 import os
+import oracledb
 import numpy as np
 import pandas as pd
 import os.path as osp
@@ -13,6 +14,29 @@ genres_columns = [
 ]
 
 DATA_FOLDER = "data/ml-100k"
+#DB_PWD = os.environ['ORCACLE_DB_PWD']
+
+hostip = "200.3.193.24"
+user = "P09551_1_3"
+pwd = "P09551_1_3_20231"
+port = 1522
+service_name = "ESTUD"
+
+dirpath = "/home/sebastiangarcia/Documents/u/8/bd-lab/instantclient_19_10"
+clientfilename = "libclntsh.so"
+clientfile = osp.join(dirpath, clientfilename)
+
+oracledb.init_oracle_client()
+
+connection = oracledb.connect(
+   user=user,
+   password=pwd,
+   host=f"{hostip}",
+   port=port,
+   service_name=service_name,
+)
+
+cursor = connection.cursor()
 
 
 def download_data(url: str, save_path: str) -> None:
@@ -80,9 +104,7 @@ def create_movie_genre_table(movies_df: pd.DataFrame, genres_2_id: ty.Dict[str, 
     movie_genres_df = pd.DataFrame(movie_genres)
     return movie_genres_df
 
-def main() -> None:
-    # URL to download the MovieLens 100K dataset
-    url = 'http://files.grouplens.org/datasets/movielens/ml-100k.zip'
+def get_tables(url) -> ty.Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     download_data(url, DATA_FOLDER)
     movies_df, users_df, ratings_df = read_dataset(DATA_FOLDER, genres_columns)
     genres = pd.DataFrame(dict(genre_name=genres_columns)).reset_index(drop=False)
@@ -93,6 +115,20 @@ def main() -> None:
     movie_genres_df['movie_genre_id'] = movie_genres_df.index
     movies_df.drop(columns=['genre'], inplace=True)
     ratings_df['rating_id'] = ratings_df.index
+    return movies_df, users_df, ratings_df, genres, movie_genres_df
+
+
+def create_schema(sql_code_path: str) -> None:
+    with open(sql_code_path, 'r') as f:
+        sql_code = f.read()
+    print("Creating schema...")
+    print(sql_code)
+    cursor.execute(f"""{sql_code}""")
+
+def main() -> None:
+    # URL to download the MovieLens 100K dataset
+    url = 'http://files.grouplens.org/datasets/movielens/ml-100k.zip'
+    movies_df, users_df, ratings_df, genres, movie_genres_df = get_tables(url)
     print("Movies DataFrame:")
     print(movies_df.head())
     print("Movie Genres DataFrame:")
@@ -104,6 +140,8 @@ def main() -> None:
     print("Ratings DataFrame:")
     print(ratings_df.head())
     
+
+    create_schema("ddl.sql")
 
 if __name__ == '__main__':
     main()

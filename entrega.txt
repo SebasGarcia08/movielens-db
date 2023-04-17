@@ -1,0 +1,6 @@
+Autores:
+Sebastián García Acosta
+Juan Pablo Sanín
+
+repositorio: https://github.com/SebasGarcia08/movielens-db.git
+En el README.md están las instrucciones
